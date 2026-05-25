@@ -1,8 +1,14 @@
+import Hero from '@/components/Hero'
+import Navbar from '@/components/Navbar'
+
 function App() {
   return (
-    <main className="min-h-screen grid place-items-center">
-      <p className="text-muted-foreground">Setup en progreso…</p>
-    </main>
+    <>
+      <Navbar />
+      <main>
+        <Hero />
+      </main>
+    </>
   )
 }
 
