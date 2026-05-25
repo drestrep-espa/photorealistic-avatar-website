@@ -1,9 +1,8 @@
 import { Button } from '@/components/ui/button'
 
 const navLinks = [
-  { href: '#para-quien', label: 'Para quién' },
   { href: '#como-funciona', label: 'Cómo funciona' },
-  { href: '#features', label: 'Características' },
+  { href: '#para-quien', label: 'Para quién' },
 ]
 
 function Navbar() {

@@ -1,4 +1,6 @@
+import ForWho from '@/components/ForWho'
 import Hero from '@/components/Hero'
+import HowItWorks from '@/components/HowItWorks'
 import Navbar from '@/components/Navbar'
 
 function App() {
@@ -7,6 +9,8 @@ function App() {
       <Navbar />
       <main>
         <Hero />
+        <HowItWorks />
+        <ForWho />
       </main>
     </>
   )
