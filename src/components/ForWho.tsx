@@ -1,4 +1,10 @@
+import { useRef } from 'react'
 import { Briefcase, GraduationCap, Users, type LucideIcon } from 'lucide-react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { useGSAP } from '@gsap/react'
+
+gsap.registerPlugin(ScrollTrigger, useGSAP)
 
 type Profile = {
   role: string
@@ -32,8 +38,27 @@ const profiles: Profile[] = [
 ]
 
 function ForWho() {
+  const sectionRef = useRef<HTMLElement>(null)
+
+  useGSAP(
+    () => {
+      gsap.from('[data-profile-row]', {
+        scrollTrigger: {
+          trigger: sectionRef.current,
+          start: 'top 75%',
+        },
+        x: -60,
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power3.out',
+        stagger: 0.18,
+      })
+    },
+    { scope: sectionRef },
+  )
+
   return (
-    <section id="para-quien" className="border-t border-border/60 bg-accent/30">
+    <section ref={sectionRef} id="para-quien">
       <div className="mx-auto max-w-4xl px-6 py-20 lg:py-28">
         <div className="max-w-2xl">
           <span className="text-sm font-medium uppercase tracking-wider text-primary">
@@ -57,7 +82,7 @@ function ForWho() {
 function ProfileRow({ profile }: { profile: Profile }) {
   const { role, headline, description, Icon } = profile
   return (
-    <li className="flex flex-col gap-6 py-10 sm:flex-row sm:gap-10">
+    <li data-profile-row className="flex flex-col gap-6 py-10 sm:flex-row sm:gap-10">
       <div className="shrink-0">
         <div className="grid size-16 place-items-center rounded-2xl bg-background text-primary shadow-sm ring-1 ring-border/60">
           <Icon className="size-7" />

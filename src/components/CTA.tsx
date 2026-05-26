@@ -1,18 +1,60 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ArrowRight, Check, Loader2 } from 'lucide-react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { useGSAP } from '@gsap/react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
+
+gsap.registerPlugin(ScrollTrigger, useGSAP)
 
 type Status = 'idle' | 'loading' | 'success' | 'error'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function CTA() {
+  const sectionRef = useRef<HTMLElement>(null)
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<Status>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  useGSAP(
+    () => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: sectionRef.current,
+          start: 'top 80%',
+        },
+      })
+
+      tl.from('[data-cta-content]', {
+        scale: 0.85,
+        opacity: 0,
+        duration: 0.9,
+        ease: 'power3.out',
+      })
+        .fromTo(
+          '[data-cta-glow]',
+          { opacity: 0, scale: 0.6 },
+          { opacity: 1, scale: 1, duration: 1.2, ease: 'power2.out' },
+          '<',
+        )
+        .to(
+          '[data-cta-button]',
+          {
+            scale: 1.06,
+            duration: 0.35,
+            ease: 'power2.out',
+            yoyo: true,
+            repeat: 1,
+          },
+          '-=0.2',
+        )
+    },
+    { scope: sectionRef },
+  )
 
   async function submitEmail() {
     const trimmed = email.trim().toLowerCase()
@@ -58,17 +100,13 @@ function CTA() {
   const isSuccess = status === 'success'
 
   return (
-    <section id="acceso" className="relative overflow-hidden border-t border-border/60">
+    <section ref={sectionRef} id="acceso" className="relative">
       <div
+        data-cta-glow
         aria-hidden
-        className="absolute inset-0 -z-10 bg-gradient-to-b from-background via-accent/30 to-background"
+        className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/15 blur-3xl"
       />
-      <div
-        aria-hidden
-        className="absolute -right-32 top-1/2 -z-10 h-[480px] w-[480px] -translate-y-1/2 rounded-full bg-primary/10 blur-3xl"
-      />
-
-      <div className="mx-auto max-w-3xl px-6 py-20 text-center lg:py-28">
+      <div data-cta-content className="mx-auto max-w-3xl px-6 py-20 text-center lg:py-28">
         <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           Solicita acceso anticipado.
         </h2>
@@ -112,7 +150,7 @@ function CTA() {
               disabled={isLoading}
               className="h-11 flex-1 text-base"
             />
-            <Button type="submit" size="lg" disabled={isLoading}>
+            <Button data-cta-button type="submit" size="lg" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="animate-spin" />
