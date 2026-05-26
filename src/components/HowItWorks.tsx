@@ -44,31 +44,28 @@ function HowItWorks() {
 
   useGSAP(
     () => {
-      const cards = gsap.utils.toArray<HTMLElement>('[data-step-card]')
-
-      gsap.set(cards, { opacity: 0.15, y: 40 })
-
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: 'top top',
-          end: '+=2400',
-          pin: true,
-          scrub: 1,
-          anticipatePin: 1,
+      gsap.fromTo(
+        '[data-step-card]',
+        { y: 40, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.9,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: '[data-step-grid]',
+            start: 'top 80%',
+            toggleActions: 'play none none none',
+          },
         },
-      })
-
-      cards.forEach((card) => {
-        tl.to(card, { opacity: 1, y: 0, duration: 1, ease: 'power2.out' }).to({}, { duration: 0.4 })
-      })
+      )
     },
     { scope: sectionRef },
   )
 
   return (
     <section ref={sectionRef} id="como-funciona" className="relative">
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-20 lg:py-28">
+      <div className="mx-auto max-w-6xl px-6 py-20 lg:py-28">
         <div className="mx-auto max-w-2xl text-center">
           <span className="text-sm font-medium uppercase tracking-wider text-primary">
             Cómo funciona
@@ -82,7 +79,7 @@ function HowItWorks() {
           </p>
         </div>
 
-        <ol className="mt-16 grid gap-6 md:grid-cols-3">
+        <ol data-step-grid className="mt-16 grid gap-6 md:grid-cols-3">
           {steps.map((step) => (
             <StepCard key={step.number} step={step} />
           ))}

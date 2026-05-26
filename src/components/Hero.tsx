@@ -125,9 +125,15 @@ function HeroVideoCall() {
           12:34
         </div>
 
-        <div className="grid h-full w-full place-items-center text-white/30">
-          <User className="size-40" strokeWidth={1} />
-        </div>
+        <img
+          src="/chico.png"
+          alt="Martín · paciente simulado"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30"
+        />
 
         <div className="absolute bottom-24 right-4 h-24 w-20 overflow-hidden rounded-xl border border-white/10 bg-slate-700 shadow-lg">
           <div className="grid h-full w-full place-items-center text-white/40">
@@ -146,7 +152,7 @@ function HeroVideoCall() {
         </div>
 
         <div className="absolute bottom-20 left-4 rounded-md bg-black/50 px-2 py-1 text-[11px] font-medium text-white backdrop-blur">
-          Marta · Paciente
+          Martín · Paciente
         </div>
       </Card>
     </div>
