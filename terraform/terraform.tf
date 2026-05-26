@@ -5,7 +5,7 @@ terraform {
     organization = "REPLACE_WITH_YOUR_TFC_ORG"
 
     workspaces {
-      name = "endrokosai-static-sites"
+      name = "photorealistic-avatar-website"
     }
   }
 

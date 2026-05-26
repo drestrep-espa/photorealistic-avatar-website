@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 
 # ---------- Config ----------
-INFRA_DIR    := infra
+INFRA_DIR    := terraform
 ENV_FILE     := .env.production.local
 AWS_PROFILE  ?=
 AWS_FLAGS    := $(if $(AWS_PROFILE),--profile $(AWS_PROFILE),)
