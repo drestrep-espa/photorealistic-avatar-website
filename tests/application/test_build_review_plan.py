@@ -4,7 +4,10 @@ import pytest
 
 from tests.fakes.fake_llm_service import FakeLlmService
 
-from src.application.build_review_plan import build_review_plan
+from src.application.build_review_plan import (
+    _BUILD_REVIEW_PLAN_PROMPT,
+    build_review_plan,
+)
 
 
 def _valid_plan_dict():
@@ -40,22 +43,24 @@ def test_build_review_plan_returns_dict_from_llm_json_response():
 
     result = build_review_plan(
         llm_service=fake_llm_service,
-        document_text="contenido de prueba del proyecto",
+        document_path="/tmp/proyecto_basico.pdf",
     )
 
     assert result == plan_dict
 
 
-def test_build_review_plan_includes_document_text_in_message_content():
+def test_build_review_plan_sends_document_path_and_plain_prompt_content():
     fake_llm_service = FakeLlmService(
         response={"content": json.dumps(_valid_plan_dict()), "tool_calls": []}
     )
-    document_text = "contenido de prueba del proyecto"
+    document_path = "/tmp/proyecto_basico.pdf"
 
-    build_review_plan(llm_service=fake_llm_service, document_text=document_text)
+    build_review_plan(llm_service=fake_llm_service, document_path=document_path)
 
-    assert fake_llm_service.received_document_path is None
-    assert document_text in fake_llm_service.received_messages[-1]["content"]
+    assert fake_llm_service.received_document_path == document_path
+    assert fake_llm_service.received_messages == [
+        {"role": "user", "content": _BUILD_REVIEW_PLAN_PROMPT}
+    ]
 
 
 def test_build_review_plan_propagates_json_decode_error_on_invalid_content():
@@ -66,5 +71,5 @@ def test_build_review_plan_propagates_json_decode_error_on_invalid_content():
     with pytest.raises(json.JSONDecodeError):
         build_review_plan(
             llm_service=fake_llm_service,
-            document_text="contenido de prueba del proyecto",
+            document_path="/tmp/proyecto_basico.pdf",
         )

@@ -5,10 +5,10 @@ from ..domain.llm_service import LlmService
 
 _BUILD_REVIEW_PLAN_PROMPT = """\
 Eres un asistente de pre-revisión de proyectos básicos de arquitectura frente \
-a normativa urbanística municipal. Analiza el texto completo del documento \
-del proyecto (documentación exclusivamente textual: memoria, tablas, anexos, \
-certificados y normativa citada) que se te proporciona a continuación y \
-construye un plan de revisión.
+a normativa urbanística municipal. Analiza el PDF completo del proyecto que \
+se te ha proporcionado (documentación exclusivamente textual: memoria, \
+tablas, anexos, certificados y normativa citada) y construye un plan de \
+revisión.
 
 No inventes checks innecesarios ni obligaciones normativas que no se puedan \
 justificar por el contenido real del documento: cada dato del plan debe estar \
@@ -63,10 +63,11 @@ BUILD_REVIEW_PLAN_TOOL = {
     "function": {
         "name": "build_review_plan",
         "description": (
-            "Analiza el texto completo ya extraído de un proyecto básico de "
-            "arquitectura (documentación exclusivamente textual: memoria, "
-            "tablas, anexos, certificados y normativa citada) y construye un "
-            "plan de revisión normativa: tipo de proyecto, documentación "
+            "Analiza el PDF completo del proyecto básico de arquitectura "
+            "que se te ha proporcionado (documentación exclusivamente "
+            "textual: memoria, tablas, anexos, certificados y normativa "
+            "citada) y construye un plan de revisión normativa: tipo de "
+            "proyecto, documentación "
             "esperada, elementos detectados, normativa aplicable, parámetros "
             "urbanísticos a verificar, afecciones, coherencia interna, "
             "afirmaciones a comprobar y puntos que requieren revisión "
@@ -81,12 +82,10 @@ BUILD_REVIEW_PLAN_TOOL = {
 }
 
 
-def build_review_plan(*, llm_service: LlmService, document_text: str) -> Dict[str, Any]:
-    content = (
-        f"{_BUILD_REVIEW_PLAN_PROMPT}\n\n"
-        f"Texto completo del documento a analizar:\n\n{document_text}"
-    )
+def build_review_plan(*, llm_service: LlmService, document_path: str) -> Dict[str, Any]:
     response = llm_service.make_request(
-        messages=[{"role": "user", "content": content}],
+        messages=[{"role": "user", "content": _BUILD_REVIEW_PLAN_PROMPT}],
+        document_path=document_path,
+        expects_json=True,
     )
     return json.loads(response["content"])
