@@ -11,7 +11,7 @@ class OpenAiLlmService(LlmService):
     def __init__(
         self,
         api_key: str,
-        model: str = "gpt-5.4",
+        model: str = "gpt-5.4-mini",
         client: Optional[openai.OpenAI] = None,
     ) -> None:
         self._model = model
@@ -22,6 +22,7 @@ class OpenAiLlmService(LlmService):
         messages: List[Dict[str, Any]],
         tools: Optional[List[Dict[str, Any]]] = None,
         document_path: Optional[str] = None,
+        expects_json: bool = False,
     ) -> Dict[str, Any]:
         request_messages = messages
         if document_path is not None:
@@ -29,11 +30,15 @@ class OpenAiLlmService(LlmService):
                 messages, document_path
             )
 
-        response = self._client.chat.completions.create(
-            model=self._model,
-            messages=request_messages,
-            tools=tools,
-        )
+        request_kwargs: Dict[str, Any] = {
+            "model": self._model,
+            "messages": request_messages,
+            "tools": tools,
+        }
+        if expects_json:
+            request_kwargs["response_format"] = {"type": "json_object"}
+
+        response = self._client.chat.completions.create(**request_kwargs)
         message = response.choices[0].message
 
         return {

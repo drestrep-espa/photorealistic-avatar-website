@@ -143,6 +143,41 @@ def test_make_request_without_document_path_keeps_previous_behavior():
     )
 
 
+def test_make_request_with_expects_json_true_forces_json_response_format():
+    fake_client = _build_fake_openai_client(
+        SimpleNamespace(content='{"ok": true}', tool_calls=None)
+    )
+    service = OpenAiLlmService(api_key="fake-api-key", client=fake_client)
+    messages = [{"role": "user", "content": "devuelve json"}]
+
+    result = service.make_request(messages=messages, expects_json=True)
+
+    assert result == {"content": '{"ok": true}', "tool_calls": []}
+    fake_client.chat.completions.create.assert_called_once_with(
+        model=service._model,
+        messages=messages,
+        tools=None,
+        response_format={"type": "json_object"},
+    )
+
+
+def test_make_request_with_expects_json_false_omits_response_format():
+    fake_client = _build_fake_openai_client(
+        SimpleNamespace(content="hola", tool_calls=None)
+    )
+    service = OpenAiLlmService(api_key="fake-api-key", client=fake_client)
+    messages = [{"role": "user", "content": "hola"}]
+
+    result = service.make_request(messages=messages, expects_json=False)
+
+    assert result == {"content": "hola", "tool_calls": []}
+    call_kwargs = fake_client.chat.completions.create.call_args.kwargs
+    assert "response_format" not in call_kwargs
+    fake_client.chat.completions.create.assert_called_once_with(
+        model=service._model, messages=messages, tools=None
+    )
+
+
 def test_openai_llm_service_inherits_from_llm_service_port():
     from src.domain.llm_service import LlmService
 

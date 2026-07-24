@@ -66,3 +66,23 @@ def test_fake_llm_service_make_request_document_path_defaults_to_none():
     fake_llm_service.make_request(messages=messages)
 
     assert fake_llm_service.received_document_path is None
+
+
+def test_fake_llm_service_make_request_expects_json_defaults_to_false():
+    fake_llm_service = FakeLlmService()
+    messages = [{"role": "user", "content": "Genera un plan de revision"}]
+
+    fake_llm_service.make_request(messages=messages)
+
+    assert fake_llm_service.received_expects_json is False
+
+
+def test_fake_llm_service_make_request_registers_expects_json_true():
+    expected_plan = {"content": '{"checks": []}', "tool_calls": []}
+    fake_llm_service = FakeLlmService(response=expected_plan)
+    messages = [{"role": "user", "content": "Genera un plan de revision en JSON"}]
+
+    result = fake_llm_service.make_request(messages=messages, expects_json=True)
+
+    assert result == expected_plan
+    assert fake_llm_service.received_expects_json is True
