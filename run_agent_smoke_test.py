@@ -7,11 +7,18 @@ from fpdf.enums import XPos, YPos
 from rich import print
 
 from src.application.build_review_plan import BUILD_REVIEW_PLAN_TOOL, build_review_plan
+from src.application.index_project_document import index_project_document
 from src.application.search_item import SEARCH_ITEM_TOOL, search_item
+from src.application.search_project_document import (
+    SEARCH_PROJECT_DOCUMENT_TOOL,
+    search_project_document,
+)
 from src.infrastructure.agent import Agent
 from src.infrastructure.openai_llm_service import OpenAiLlmService
 from src.infrastructure.openai_normative_search_service import OpenAiNormativeSearchService
-from src.infrastructure.pypdf_text_extractor import PyPdfTextExtractor
+from src.infrastructure.openai_project_document_search_service import (
+    OpenAiProjectDocumentSearchService,
+)
 
 load_dotenv()
 
@@ -22,16 +29,30 @@ normative_search_service = OpenAiNormativeSearchService(
     api_key=os.environ["OPENAI_API_KEY"],
     vector_store_id=os.environ["VECTOR_STORE_id"],
 )
-text_extractor = PyPdfTextExtractor()
+PROJECT_DOCUMENT_VECTOR_STORE_ID = os.environ.get("PROJECT_DOCUMENT_VECTOR_STORE_ID")
 
-print(f"[bold yellow]Extrayendo texto de {DOCUMENT_PATH}...[/bold yellow]")
-document_text = text_extractor.extract_text(DOCUMENT_PATH)
-print(f"[dim]Texto extraído: {len(document_text)} caracteres.[/dim]")
+project_document_search_service = OpenAiProjectDocumentSearchService(
+    api_key=os.environ["OPENAI_API_KEY"],
+    vector_store_id=PROJECT_DOCUMENT_VECTOR_STORE_ID,
+)
+
+if PROJECT_DOCUMENT_VECTOR_STORE_ID is None:
+    print(f"[bold yellow]Indexando {DOCUMENT_PATH} en un vector store para búsquedas puntuales...[/bold yellow]")
+    index_project_document(
+        project_document_search_service=project_document_search_service,
+        document_path=DOCUMENT_PATH,
+    )
+    print("[dim]Proyecto indexado (vector store creado para esta ejecución).[/dim]")
+else:
+    print(
+        f"[dim]Reutilizando vector store ya indexado del proyecto "
+        f"({PROJECT_DOCUMENT_VECTOR_STORE_ID}), no se vuelve a subir el PDF.[/dim]"
+    )
 
 
 def run_build_review_plan(arguments):
     print(f"[bold cyan]>> tool build_review_plan[/bold cyan] args={arguments}")
-    result = build_review_plan(llm_service=llm_service, document_text=document_text)
+    result = build_review_plan(llm_service=llm_service, document_path=DOCUMENT_PATH)
     print("[green]<< build_review_plan devolvió:[/green]")
     print(result)
     return result
@@ -42,7 +63,7 @@ def run_search_item(arguments):
     result = search_item(
         normative_search_service=normative_search_service,
         query=arguments["query"],
-        max_results=25,
+        max_results=15,
     )
     print(f"[green]<< search_item devolvió {len(result)} fragmento(s):[/green]")
     for fragment in result:
@@ -51,40 +72,75 @@ def run_search_item(arguments):
     return result
 
 
+def run_search_project_document(arguments):
+    print(f"[bold cyan]>> tool search_project_document[/bold cyan] args={arguments}")
+    result = search_project_document(
+        project_document_search_service=project_document_search_service,
+        query=arguments["query"],
+        max_results=arguments.get("max_results", 8),
+    )
+    print(f"[green]<< search_project_document devolvió {len(result)} fragmento(s):[/green]")
+    for fragment in result:
+        preview = fragment["text"][:120].replace("\n", " ")
+        print(f"  [dim]- ({fragment['score']:.2f}) {fragment['filename']}: {preview}...[/dim]")
+    return result
+
+
 agent = Agent(
     llm_service=llm_service,
-    tools=[BUILD_REVIEW_PLAN_TOOL, SEARCH_ITEM_TOOL],
+    tools=[BUILD_REVIEW_PLAN_TOOL, SEARCH_ITEM_TOOL, SEARCH_PROJECT_DOCUMENT_TOOL],
     tool_executors={
         "build_review_plan": run_build_review_plan,
         "search_item": run_search_item,
+        "search_project_document": run_search_project_document,
     },
 )
 
 print("[bold yellow]Preguntando al agente...[/bold yellow]")
 respuesta = agent.ask(
-        f"""
-Revisa de forma preventiva el proyecto cuyo texto completo se te proporciona más abajo, con el objetivo de detectar posibles deficiencias antes de su presentación al Ayuntamiento. Ya tienes el texto íntegro del proyecto en este mensaje: no necesitas (ni puedes) volver a solicitar el PDF en ningún momento, ni al llamar a `build_review_plan` ni en ningún otro paso.
+        """
+Revisa de forma preventiva el proyecto con el objetivo de detectar posibles deficiencias antes de su presentación al Ayuntamiento.
 
-La revisión debe limitarse al contenido textual suministrado: memoria, tablas, anexos, certificados y referencias normativas. No analices planos ni marques su ausencia como una deficiencia. Cuando una comprobación dependa de planos, cotas o geometrías, indícala como `fuera_del_alcance_de_la_revision_textual`.
+No tienes el texto del proyecto en este mensaje. `build_review_plan` analiza directamente el PDF completo del proyecto adjunto internamente, por lo que no debes pedir que se vuelva a proporcionar.
 
-Primero, utiliza `build_review_plan` para analizar el proyecto y construir un plan de revisión completo y adaptado a sus características.
+La revisión debe limitarse al contenido textual del proyecto: memoria, tablas, anexos, certificados y referencias normativas. No analices planos ni marques su ausencia como deficiencia. Cuando una comprobación dependa de cotas, geometrías, mediciones o contenido gráfico, utiliza el estado `fuera_del_alcance_de_la_revision_textual`.
 
-Después, revisa cada punto aplicable de forma independiente mediante `search_item`. No agrupes en una misma revisión cuestiones diferentes como edificabilidad, ocupación, altura o retranqueos.
+## Flujo obligatorio
 
-Para cada punto debes obtener y mostrar:
+1. Utiliza `build_review_plan` para identificar todos los puntos aplicables al proyecto.
+2. Separa los puntos para que cada comprobación trate una única cuestión. No agrupes edificabilidad, ocupación, altura, retranqueos u otros parámetros diferentes.
+3. Para cada punto:
+   - utiliza `search_project_document` para localizar la evidencia exacta dentro del proyecto;
+   - utiliza `search_item` para localizar la normativa aplicable;
+   - compara ambas evidencias;
+   - emite una conclusión trazable.
+
+`build_review_plan` sirve para construir el plan, pero su resultado no debe utilizarse como única evidencia. Las cifras, textos, fechas y páginas relevantes deben confirmarse mediante `search_project_document`.
+
+No declares que una información no está localizada en el proyecto sin haber realizado antes una búsqueda específica con `search_project_document`. Si la primera búsqueda no es concluyente, reformula la consulta una vez utilizando términos más concretos, sinónimos o el valor numérico buscado.
+
+No declares `normativa_no_recuperada` sin haber realizado una búsqueda normativa específica mediante `search_item`. Si los primeros resultados no son concluyentes, repite la búsqueda una vez con el municipio, ordenanza, artículo o parámetro más específico.
+
+No incluyas en el informe todos los fragmentos recuperados. Selecciona únicamente la evidencia más relevante y concluyente.
+
+## Contenido obligatorio de cada punto
+
+Para cada cuestión revisada, muestra:
 
 - cuestión revisada;
 - norma aplicable;
 - documento normativo;
 - artículo, apartado y página, cuando estén disponibles;
-- fragmento concreto que establece la obligación;
-- evidencia del proyecto, indicando página y texto o dato localizado;
+- fragmento normativo concreto que establece la obligación;
+- evidencia del proyecto, indicando página y fragmento o dato exacto;
 - comparación explícita entre lo exigido y lo declarado;
 - razonamiento de la conclusión;
 - estado final;
 - acción correctora.
 
-Utiliza únicamente estos estados:
+## Estados permitidos
+
+Utiliza únicamente:
 
 - `cumple_segun_datos_declarados`
 - `no_cumple_demostrado`
@@ -95,43 +151,55 @@ Utiliza únicamente estos estados:
 - `fuera_del_alcance_de_la_revision_textual`
 - `requiere_revision_tecnica`
 
-No confundas `normativa_no_recuperada` con `no_justificado_en_el_proyecto`. No afirmes incumplimiento si no existe una norma concreta y una evidencia suficiente.
+Aplica los estados con estos criterios:
 
-Cuando existan valores numéricos, realiza la comparación expresamente. Ejemplo:
+- `no_cumple_demostrado`: existe una obligación normativa concreta y evidencia suficiente del proyecto que demuestra que no se cumple.
+- `no_justificado_en_el_proyecto`: la obligación normativa está localizada, pero tras buscar expresamente en el proyecto no aparece la justificación necesaria.
+- `normativa_no_recuperada`: existe evidencia en el proyecto, pero no se ha podido localizar una norma suficientemente concreta para validarla.
+- `incoherencia_interna`: dos o más datos del propio proyecto son incompatibles.
+- `fuera_del_alcance_de_la_revision_textual`: la comprobación depende de planos, geometría, cotas o mediciones.
+- `requiere_revision_tecnica`: existe evidencia textual, pero su validez necesita cálculo o criterio técnico especializado.
+
+No confundas falta de normativa recuperada con falta de justificación en el proyecto. No afirmes incumplimiento basándote únicamente en que una información no ha sido encontrada.
+
+## Comparaciones numéricas
+
+Cuando existan valores numéricos, realiza siempre la operación de forma explícita.
+
+Ejemplo:
 
 Norma: edificabilidad máxima 0,46 m²/m².  
 Proyecto: 0,4598 m²/m², página 5.  
 Comparación: 0,4598 ≤ 0,46.  
-Conclusión: `cumple_segun_datos_declarados`.
+Estado: `cumple_segun_datos_declarados`.
 
-Si una conclusión depende de comprobar planos, indica:
+Cuando el resultado numérico sea favorable, pero necesite validación gráfica, indica:
 
 “Cumple según los datos declarados en la memoria, pero no ha sido verificado gráficamente”.
+
+No rebajes automáticamente a `parcialmente_justificado` una comparación numérica favorable únicamente porque no se hayan revisado los planos.
+
+## Informe final
 
 Al finalizar, genera un informe claro y trazable que incluya:
 
 - resumen general del proyecto;
-- número total de puntos del plan;
-- puntos revisados;
+- número total de puntos generados;
+- número de puntos revisados;
 - puntos no comprobados;
 - comprobaciones que cumplen según los datos declarados;
-- incumplimientos o incoherencias demostrados;
+- incumplimientos demostrados;
+- incoherencias internas;
 - documentación o justificaciones no localizadas;
 - normativa no recuperada;
 - aspectos parcialmente justificados;
 - cuestiones fuera del alcance de la revisión textual;
+- cuestiones que requieren revisión técnica;
 - acciones correctoras priorizadas.
 
-No te limites a resumir el plan. Debes ejecutar realmente `search_item` para cada punto aplicable y basar todas las conclusiones en evidencia concreta del proyecto y de la normativa.
+No te limites a resumir el plan. Debes ejecutar realmente `search_project_document` y `search_item` sobre cada punto aplicable y basar todas las conclusiones en evidencia concreta.
 
-Continúa hasta revisar todos los puntos del plan o hasta haber intentado razonablemente localizar la normativa y la evidencia necesarias.
-
----
-
-Texto completo del proyecto a revisar:
-
-{document_text}
-"""
+Continúa hasta revisar todos los puntos aplicables. Para controlar el contexto y evitar búsquedas innecesarias, realiza como máximo dos búsquedas en el proyecto y dos búsquedas normativas por cada punto, salvo que exista una contradicción que requiera una comprobación adicional."""
 )
 
 print("[bold magenta]Respuesta final del agente:[/bold magenta]")
