@@ -63,6 +63,19 @@ def test_build_review_plan_sends_document_path_and_plain_prompt_content():
     ]
 
 
+def test_build_review_plan_sends_tool_name_for_cost_tracking():
+    fake_llm_service = FakeLlmService(
+        response={"content": json.dumps(_valid_plan_dict()), "tool_calls": []}
+    )
+
+    build_review_plan(
+        llm_service=fake_llm_service,
+        document_path="/tmp/proyecto_basico.pdf",
+    )
+
+    assert fake_llm_service.received_tool_name == "build_review_plan"
+
+
 def test_build_review_plan_propagates_json_decode_error_on_invalid_content():
     fake_llm_service = FakeLlmService(
         response={"content": "esto no es json", "tool_calls": []}

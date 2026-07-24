@@ -10,5 +10,6 @@ class LlmService(ABC):
         tools: Optional[List[Dict[str, Any]]] = None,
         document_path: Optional[str] = None,
         expects_json: bool = False,
+        tool_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         raise NotImplementedError  # pragma: no cover

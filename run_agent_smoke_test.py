@@ -14,6 +14,7 @@ from src.application.search_project_document import (
     search_project_document,
 )
 from src.infrastructure.agent import Agent
+from src.infrastructure.openai_llm_cost_tracker import OpenAiLlmCostTracker
 from src.infrastructure.openai_llm_service import OpenAiLlmService
 from src.infrastructure.openai_normative_search_service import OpenAiNormativeSearchService
 from src.infrastructure.openai_project_document_search_service import (
@@ -24,7 +25,8 @@ load_dotenv()
 
 DOCUMENT_PATH = "data/proyecto_basico_paginas_1_a_107.pdf"
 
-llm_service = OpenAiLlmService(api_key=os.environ["OPENAI_API_KEY"])
+cost_tracker = OpenAiLlmCostTracker()
+llm_service = OpenAiLlmService(api_key=os.environ["OPENAI_API_KEY"], cost_tracker=cost_tracker)
 normative_search_service = OpenAiNormativeSearchService(
     api_key=os.environ["OPENAI_API_KEY"],
     vector_store_id=os.environ["VECTOR_STORE_id"],
@@ -226,3 +228,25 @@ pdf.multi_cell(0, 6, respuesta or "", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 output_path = f"data/informe/informe_revision_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
 pdf.output(output_path)
 print(f"[bold green]Informe guardado en {output_path}[/bold green]")
+
+cost_summary = cost_tracker.summary()
+print("[bold yellow]Coste de OpenAI de esta ejecución:[/bold yellow]")
+print(f"  [bold]Total: ${cost_summary['total_cost_usd']:.4f}[/bold]")
+print("  Por tool:")
+for tool_name, tool_stats in cost_summary["by_tool"].items():
+    print(
+        f"    - {tool_name}: ${tool_stats['cost_usd']:.4f} "
+        f"({tool_stats['calls']} llamada(s), "
+        f"{tool_stats['input_tokens']} tokens entrada, "
+        f"{tool_stats['cached_input_tokens']} cacheados, "
+        f"{tool_stats['output_tokens']} tokens salida)"
+    )
+print("  Por modelo:")
+for model_name, model_stats in cost_summary["by_model"].items():
+    print(
+        f"    - {model_name}: ${model_stats['cost_usd']:.4f} "
+        f"({model_stats['calls']} llamada(s), "
+        f"{model_stats['input_tokens']} tokens entrada, "
+        f"{model_stats['cached_input_tokens']} cacheados, "
+        f"{model_stats['output_tokens']} tokens salida)"
+    )

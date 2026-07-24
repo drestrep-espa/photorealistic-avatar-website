@@ -19,6 +19,7 @@ class FakeLlmService(LlmService):
         self.received_document_path: Optional[str] = None
         self.received_messages_per_call: List[List[Dict[str, Any]]] = []
         self.received_expects_json: bool = False
+        self.received_tool_name: Optional[str] = None
 
     def make_request(
         self,
@@ -26,12 +27,14 @@ class FakeLlmService(LlmService):
         tools: Optional[List[Dict[str, Any]]] = None,
         document_path: Optional[str] = None,
         expects_json: bool = False,
+        tool_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         self.received_messages = list(messages)
         self.received_tools = tools
         self.received_document_path = document_path
         self.received_messages_per_call.append(list(messages))
         self.received_expects_json = expects_json
+        self.received_tool_name = tool_name
 
         index = min(self._call_count, len(self._responses) - 1)
         self._call_count += 1

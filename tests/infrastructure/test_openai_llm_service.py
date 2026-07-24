@@ -3,11 +3,16 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from src.infrastructure.openai_llm_service import OpenAiLlmService
+from tests.fakes.fake_llm_cost_tracker import FakeLlmCostTracker
 
 
-def _build_fake_openai_client(message: SimpleNamespace) -> MagicMock:
+def _build_fake_openai_client(
+    message: SimpleNamespace, usage: SimpleNamespace = None
+) -> MagicMock:
     fake_client = MagicMock()
-    fake_response = SimpleNamespace(choices=[SimpleNamespace(message=message)])
+    fake_response = SimpleNamespace(
+        choices=[SimpleNamespace(message=message)], usage=usage
+    )
     fake_client.chat.completions.create.return_value = fake_response
     return fake_client
 
@@ -187,3 +192,89 @@ def test_openai_llm_service_inherits_from_llm_service_port():
     service = OpenAiLlmService(api_key="fake-api-key", client=fake_client)
 
     assert isinstance(service, LlmService)
+
+
+def test_make_request_records_cost_with_cached_tokens_when_cost_tracker_injected():
+    usage = SimpleNamespace(
+        prompt_tokens=120,
+        completion_tokens=40,
+        prompt_tokens_details=SimpleNamespace(cached_tokens=30),
+    )
+    fake_client = _build_fake_openai_client(
+        SimpleNamespace(content="hola", tool_calls=None), usage=usage
+    )
+    cost_tracker = FakeLlmCostTracker()
+    service = OpenAiLlmService(
+        api_key="fake-api-key", client=fake_client, cost_tracker=cost_tracker
+    )
+    messages = [{"role": "user", "content": "hola"}]
+
+    service.make_request(messages=messages, tool_name="build_review_plan")
+
+    assert cost_tracker.summary() == {
+        "entries": [
+            {
+                "tool_name": "build_review_plan",
+                "model": "gpt-5.4-mini",
+                "input_tokens": 120,
+                "cached_input_tokens": 30,
+                "output_tokens": 40,
+            }
+        ]
+    }
+
+
+def test_make_request_records_cost_with_zero_cached_tokens_when_details_absent():
+    usage = SimpleNamespace(
+        prompt_tokens=80,
+        completion_tokens=20,
+        prompt_tokens_details=None,
+    )
+    fake_client = _build_fake_openai_client(
+        SimpleNamespace(content="hola", tool_calls=None), usage=usage
+    )
+    cost_tracker = FakeLlmCostTracker()
+    service = OpenAiLlmService(
+        api_key="fake-api-key", client=fake_client, cost_tracker=cost_tracker
+    )
+    messages = [{"role": "user", "content": "hola"}]
+
+    service.make_request(messages=messages, tool_name="agent_reasoning")
+
+    entry = cost_tracker.summary()["entries"][0]
+    assert entry["cached_input_tokens"] == 0
+    assert entry["input_tokens"] == 80
+    assert entry["output_tokens"] == 20
+
+
+def test_make_request_defaults_tool_name_to_sin_etiquetar_when_not_provided():
+    usage = SimpleNamespace(
+        prompt_tokens=10,
+        completion_tokens=5,
+        prompt_tokens_details=None,
+    )
+    fake_client = _build_fake_openai_client(
+        SimpleNamespace(content="hola", tool_calls=None), usage=usage
+    )
+    cost_tracker = FakeLlmCostTracker()
+    service = OpenAiLlmService(
+        api_key="fake-api-key", client=fake_client, cost_tracker=cost_tracker
+    )
+    messages = [{"role": "user", "content": "hola"}]
+
+    service.make_request(messages=messages)
+
+    entry = cost_tracker.summary()["entries"][0]
+    assert entry["tool_name"] == "sin_etiquetar"
+
+
+def test_make_request_does_not_record_cost_when_no_cost_tracker_injected():
+    fake_client = _build_fake_openai_client(
+        SimpleNamespace(content="hola", tool_calls=None)
+    )
+    service = OpenAiLlmService(api_key="fake-api-key", client=fake_client)
+    messages = [{"role": "user", "content": "hola"}]
+
+    result = service.make_request(messages=messages)
+
+    assert result == {"content": "hola", "tool_calls": []}

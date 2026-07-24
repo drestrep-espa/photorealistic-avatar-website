@@ -22,7 +22,9 @@ class Agent:
         self._messages.append({"role": "user", "content": user_message})
 
         for _ in range(self._max_iterations):
-            response = self._llm_service.make_request(self._messages, self._tools or None)
+            response = self._llm_service.make_request(
+                self._messages, self._tools or None, tool_name="agent_reasoning"
+            )
             tool_calls = response.get("tool_calls") or []
 
             if not tool_calls:

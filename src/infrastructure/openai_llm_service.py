@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import openai
 
+from ..domain.llm_cost_tracker import LlmCostTracker
 from ..domain.llm_service import LlmService
 
 
@@ -13,9 +14,11 @@ class OpenAiLlmService(LlmService):
         api_key: str,
         model: str = "gpt-5.4-mini",
         client: Optional[openai.OpenAI] = None,
+        cost_tracker: Optional[LlmCostTracker] = None,
     ) -> None:
         self._model = model
         self._client = client or openai.OpenAI(api_key=api_key)
+        self._cost_tracker = cost_tracker
 
     def make_request(
         self,
@@ -23,6 +26,7 @@ class OpenAiLlmService(LlmService):
         tools: Optional[List[Dict[str, Any]]] = None,
         document_path: Optional[str] = None,
         expects_json: bool = False,
+        tool_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         request_messages = messages
         if document_path is not None:
@@ -41,6 +45,9 @@ class OpenAiLlmService(LlmService):
         response = self._client.chat.completions.create(**request_kwargs)
         message = response.choices[0].message
 
+        if self._cost_tracker is not None:
+            self._record_cost(response, tool_name)
+
         return {
             "content": message.content,
             "tool_calls": [
@@ -52,6 +59,22 @@ class OpenAiLlmService(LlmService):
                 for tool_call in (message.tool_calls or [])
             ],
         }
+
+    def _record_cost(self, response: Any, tool_name: Optional[str]) -> None:
+        usage = response.usage
+        prompt_tokens_details = getattr(usage, "prompt_tokens_details", None)
+        cached_input_tokens = (
+            getattr(prompt_tokens_details, "cached_tokens", 0) or 0
+            if prompt_tokens_details is not None
+            else 0
+        )
+        self._cost_tracker.record(
+            tool_name=tool_name or "sin_etiquetar",
+            model=self._model,
+            input_tokens=usage.prompt_tokens,
+            cached_input_tokens=cached_input_tokens,
+            output_tokens=usage.completion_tokens,
+        )
 
     def _attach_document_to_messages(
         self, messages: List[Dict[str, Any]], document_path: str

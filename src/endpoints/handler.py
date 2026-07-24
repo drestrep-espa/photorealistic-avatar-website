@@ -9,6 +9,7 @@ from src.application.search_project_document import (
 )
 from src.application.use_case import check_document_with_agent
 from src.infrastructure.agent import Agent
+from src.infrastructure.openai_llm_cost_tracker import OpenAiLlmCostTracker
 from src.infrastructure.openai_llm_service import OpenAiLlmService
 from src.infrastructure.openai_normative_search_service import OpenAiNormativeSearchService
 from src.infrastructure.openai_project_document_search_service import (
@@ -21,7 +22,8 @@ def check_document(document_path: str):
     vector_store_id = os.environ["NORMATIVE_VECTOR_STORE_ID"]
     project_document_vector_store_id = os.environ.get("PROJECT_DOCUMENT_VECTOR_STORE_ID")
 
-    llm_service = OpenAiLlmService(api_key=api_key)
+    cost_tracker = OpenAiLlmCostTracker()
+    llm_service = OpenAiLlmService(api_key=api_key, cost_tracker=cost_tracker)
     normative_search_service = OpenAiNormativeSearchService(
         api_key=api_key, vector_store_id=vector_store_id
     )
@@ -58,4 +60,5 @@ def check_document(document_path: str):
     }
 
     agent = Agent(llm_service, tools=tools, tool_executors=tool_executors)
-    return check_document_with_agent(agent)
+    resultado = check_document_with_agent(agent)
+    return resultado, cost_tracker.summary()

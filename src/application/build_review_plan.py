@@ -87,5 +87,6 @@ def build_review_plan(*, llm_service: LlmService, document_path: str) -> Dict[st
         messages=[{"role": "user", "content": _BUILD_REVIEW_PLAN_PROMPT}],
         document_path=document_path,
         expects_json=True,
+        tool_name="build_review_plan",
     )
     return json.loads(response["content"])

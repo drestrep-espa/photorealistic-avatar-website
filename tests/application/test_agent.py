@@ -16,6 +16,17 @@ def test_agent_returns_final_text_when_llm_responds_without_tool_calls():
     assert result == "respuesta del asistente"
 
 
+def test_agent_tags_its_own_reasoning_calls_with_agent_reasoning_tool_name():
+    fake_llm_service = FakeLlmService(
+        response={"content": "respuesta del asistente", "tool_calls": []}
+    )
+    agent = Agent(llm_service=fake_llm_service)
+
+    agent.ask("hola")
+
+    assert fake_llm_service.received_tool_name == "agent_reasoning"
+
+
 def test_agent_executes_tool_and_returns_final_text_after_second_round():
     tool_calls = [
         {"id": "call_1", "name": "buscar_normativa", "arguments": '{"municipio": "Boadilla"}'}
