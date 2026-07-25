@@ -207,6 +207,43 @@ def test_index_document_does_not_delete_anything_on_first_indexing():
     fake_client.vector_stores.delete.assert_not_called()
 
 
+def test_delete_index_deletes_files_and_vector_store_and_is_idempotent():
+    fake_client = _build_fake_openai_client()
+    fake_client.vector_stores.files.list.return_value = [
+        SimpleNamespace(id="file-1"),
+        SimpleNamespace(id="file-2"),
+    ]
+    service = OpenAiProjectDocumentSearchService(
+        api_key="fake-api-key",
+        vector_store_id="vs_old",
+        client=fake_client,
+    )
+
+    service.delete_index()
+
+    fake_client.vector_stores.files.list.assert_called_once_with(
+        vector_store_id="vs_old"
+    )
+    fake_client.files.delete.assert_any_call("file-1")
+    fake_client.files.delete.assert_any_call("file-2")
+    fake_client.vector_stores.delete.assert_called_once_with("vs_old")
+
+    service.delete_index()
+
+    fake_client.vector_stores.delete.assert_called_once_with("vs_old")
+
+
+def test_delete_index_is_a_no_op_when_nothing_indexed():
+    fake_client = _build_fake_openai_client()
+    service = OpenAiProjectDocumentSearchService(api_key="fake-api-key", client=fake_client)
+
+    service.delete_index()
+
+    fake_client.vector_stores.files.list.assert_not_called()
+    fake_client.files.delete.assert_not_called()
+    fake_client.vector_stores.delete.assert_not_called()
+
+
 def test_openai_project_document_search_service_inherits_from_port():
     from src.domain.project_document_search_service import ProjectDocumentSearchService
 

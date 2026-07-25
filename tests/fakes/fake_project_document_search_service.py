@@ -12,6 +12,7 @@ class FakeProjectDocumentSearchService(ProjectDocumentSearchService):
         self.received_document_path: Optional[str] = None
         self.received_query: Optional[str] = None
         self.received_max_results: Optional[int] = None
+        self.was_index_deleted: bool = False
 
     def index_document(self, document_path: str) -> None:
         self.received_document_path = document_path
@@ -20,3 +21,6 @@ class FakeProjectDocumentSearchService(ProjectDocumentSearchService):
         self.received_query = query
         self.received_max_results = max_results
         return self._response
+
+    def delete_index(self) -> None:
+        self.was_index_deleted = True

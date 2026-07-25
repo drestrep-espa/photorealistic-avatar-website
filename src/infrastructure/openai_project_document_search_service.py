@@ -20,19 +20,45 @@ class OpenAiProjectDocumentSearchService(ProjectDocumentSearchService):
         if self._vector_store_id is not None:
             self._delete_previous_index()
 
+        print(f"[index] Subiendo '{document_path}' a OpenAI...", flush=True)
         with open(document_path, "rb") as document_file:
             file = self._client.files.create(file=document_file, purpose="assistants")
+        print(f"[index] Fichero subido (file_id={file.id}).", flush=True)
 
         vector_store = self._client.vector_stores.create(
             name=os.path.basename(document_path)
         )
+        print(
+            f"[index] Vector store creado (id={vector_store.id}). "
+            "Procesando el documento...",
+            flush=True,
+        )
 
-        self._client.vector_stores.files.create_and_poll(
+        vector_store_file = self._client.vector_stores.files.create_and_poll(
             vector_store_id=vector_store.id,
             file_id=file.id,
         )
+        status = getattr(vector_store_file, "status", "desconocido")
+        print(
+            f"[index] Proyecto indexado en vector store {vector_store.id} "
+            f"(estado={status}).",
+            flush=True,
+        )
 
         self._vector_store_id = vector_store.id
+
+    def delete_index(self) -> None:
+        if self._vector_store_id is None:
+            print("[cleanup] No hay vector store del proyecto que borrar.", flush=True)
+            return
+
+        print(
+            f"[cleanup] Borrando vector store del proyecto {self._vector_store_id}...",
+            flush=True,
+        )
+        self._delete_previous_index()
+        self._vector_store_id = None
+        print("[cleanup] Vector store del proyecto borrado.", flush=True)
 
     def _delete_previous_index(self) -> None:
         files = self._client.vector_stores.files.list(

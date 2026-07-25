@@ -41,3 +41,13 @@ def test_fake_project_document_search_service_search_returns_configured_fragment
     assert result == fragments
     assert fake_project_document_search_service.received_query == "superficie"
     assert fake_project_document_search_service.received_max_results == 2
+
+
+def test_fake_project_document_search_service_delete_index_marks_flag():
+    fake_project_document_search_service = FakeProjectDocumentSearchService()
+
+    assert fake_project_document_search_service.was_index_deleted is False
+
+    fake_project_document_search_service.delete_index()
+
+    assert fake_project_document_search_service.was_index_deleted is True

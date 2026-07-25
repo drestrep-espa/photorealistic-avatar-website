@@ -47,6 +47,6 @@ def search_item(
     *,
     normative_search_service: NormativeSearchService,
     query: str,
-    max_results: int = 8,
+    max_results: int = 20,
 ) -> List[Dict[str, Any]]:
     return normative_search_service.search(query=query, max_results=max_results)
