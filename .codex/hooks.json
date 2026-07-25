@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|^apply_patch$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -lc 'root=$(pwd); while [ \"$root\" != \"/\" ] && [ ! -d \"$root/.codex\" ]; do root=$(dirname \"$root\"); done; bash \"$root/.codex/hooks/check-imports.sh\"'",
+            "timeout": 120,
+            "statusMessage": "Checking Foqum layer boundaries"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -lc 'root=$(pwd); while [ \"$root\" != \"/\" ] && [ ! -d \"$root/.codex\" ]; do root=$(dirname \"$root\"); done; python3 \"$root/.codex/hooks/coverage-gate.py\"'",
+            "timeout": 600,
+            "statusMessage": "Running Foqum coverage gate"
+          }
+        ]
+      }
+    ]
+  }
+}
