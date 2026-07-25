@@ -25,10 +25,12 @@ class OpenAiNormativeSearchService(NormativeSearchService):
         return [self._normalize_result(result) for result in response.data]
 
     def _normalize_result(self, result: Any) -> Dict[str, Any]:
+        attributes = getattr(result, "attributes", None) or {}
         return {
             "text": self._extract_text(result),
             "score": getattr(result, "score", None),
             "filename": getattr(result, "filename", None),
+            "page": attributes.get("page"),
         }
 
     def _extract_text(self, result: Any) -> str:

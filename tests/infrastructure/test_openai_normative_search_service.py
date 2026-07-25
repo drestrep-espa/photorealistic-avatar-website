@@ -13,9 +13,11 @@ def _build_fake_openai_client(data: list) -> MagicMock:
     return fake_client
 
 
-def _build_search_result(text: str, score: float, filename: str) -> SimpleNamespace:
+def _build_search_result(
+    text: str, score: float, filename: str, page: int = None
+) -> SimpleNamespace:
     return SimpleNamespace(
-        attributes=None,
+        attributes={"page": page} if page is not None else None,
         content=[SimpleNamespace(text=text, type="text")],
         file_id="file-123",
         filename=filename,
@@ -79,12 +81,36 @@ def test_search_returns_normalized_fragments():
             "text": "altura maxima 3 plantas",
             "score": 0.87,
             "filename": "pgou_boadilla.pdf",
+            "page": None,
         },
         {
             "text": "retranqueo minimo 3 metros",
             "score": 0.65,
             "filename": "normas_urbanisticas.pdf",
+            "page": None,
         },
+    ]
+
+
+def test_search_returns_page_from_result_attributes():
+    fake_client = _build_fake_openai_client(
+        [_build_search_result("altura maxima 3 plantas", 0.87, "pgou_boadilla.pdf", page=12)]
+    )
+    service = OpenAiNormativeSearchService(
+        api_key="fake-api-key",
+        vector_store_id="vs_fake_123",
+        client=fake_client,
+    )
+
+    result = service.search(query="altura maxima")
+
+    assert result == [
+        {
+            "text": "altura maxima 3 plantas",
+            "score": 0.87,
+            "filename": "pgou_boadilla.pdf",
+            "page": 12,
+        }
     ]
 
 
@@ -113,6 +139,7 @@ def test_search_joins_multiple_content_chunks_of_same_result():
             "text": "parte 1 del articulo\nparte 2 del articulo",
             "score": 0.72,
             "filename": "pgou_boadilla.pdf",
+            "page": None,
         }
     ]
 
