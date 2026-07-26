@@ -101,6 +101,36 @@ def test_check_document_reads_credentials_and_config_from_environment(
 
 
 @_patch_all
+def test_check_document_uses_explicit_credentials_when_provided(
+    mock_llm_service_cls,
+    mock_normative_search_cls,
+    mock_project_document_search_cls,
+    mock_index_project_document,
+    mock_delete_project_document_index,
+    mock_fpdf_report_generator_cls,
+    mock_generate_review_report,
+    mock_agent_cls,
+    mock_check_document_with_agent,
+    mock_cost_tracker_cls,
+):
+    check_document(
+        "proyecto.pdf",
+        api_key="ssm-api-key",
+        vector_store_id="ssm-vector-store-id",
+    )
+
+    mock_llm_service_cls.assert_called_once_with(
+        api_key="ssm-api-key",
+        cost_tracker=mock_cost_tracker_cls.return_value,
+    )
+    mock_normative_search_cls.assert_called_once_with(
+        api_key="ssm-api-key",
+        vector_store_id="ssm-vector-store-id",
+    )
+    mock_project_document_search_cls.assert_called_once_with(api_key="ssm-api-key")
+
+
+@_patch_all
 def test_build_review_plan_executor_calls_build_review_plan_with_document_path(
     mock_llm_service_cls,
     mock_normative_search_cls,
@@ -322,6 +352,33 @@ def test_check_document_generates_report_with_agent_result_and_expected_output_d
         report_generator=mock_fpdf_report_generator_cls.return_value,
         content="resultado final",
         output_dir="data/informe",
+    )
+
+
+@_patch_all
+def test_check_document_uses_custom_report_output_dir(
+    mock_llm_service_cls,
+    mock_normative_search_cls,
+    mock_project_document_search_cls,
+    mock_index_project_document,
+    mock_delete_project_document_index,
+    mock_fpdf_report_generator_cls,
+    mock_generate_review_report,
+    mock_agent_cls,
+    mock_check_document_with_agent,
+    mock_cost_tracker_cls,
+    monkeypatch,
+):
+    _set_env(monkeypatch)
+    mock_check_document_with_agent.return_value = "resultado final"
+    mock_generate_review_report.return_value = "/tmp/reports/informe.pdf"
+
+    check_document("proyecto.pdf", report_output_dir="/tmp/reports")
+
+    mock_generate_review_report.assert_called_once_with(
+        report_generator=mock_fpdf_report_generator_cls.return_value,
+        content="resultado final",
+        output_dir="/tmp/reports",
     )
 
 

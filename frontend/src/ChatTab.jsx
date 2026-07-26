@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import MarkdownContent from './MarkdownContent.jsx'
 
-const API_BASE = '/api'
+const API_BASE = import.meta.env.VITE_CHAT_API_URL || '/api'
 
 const EXAMPLE_QUESTIONS = [
   '¿Cuál es la ocupación máxima permitida para la ordenanza RU-3?',

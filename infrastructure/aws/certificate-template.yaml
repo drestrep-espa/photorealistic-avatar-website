@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Certificado global de CloudFront para normativa-precheck
+
+Parameters:
+  DomainName:
+    Type: String
+  HostedZoneId:
+    Type: String
+
+Resources:
+  FrontendCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+
+Outputs:
+  CertificateArn:
+    Value: !Ref FrontendCertificate

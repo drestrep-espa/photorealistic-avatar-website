@@ -45,7 +45,18 @@ export default function App() {
           />
         </nav>
 
-        {activeTab === TABS.REVIEW ? <ReviewTab /> : <ChatTab />}
+        <div
+          className={activeTab === TABS.REVIEW ? 'contents' : 'hidden'}
+          aria-hidden={activeTab !== TABS.REVIEW}
+        >
+          <ReviewTab />
+        </div>
+        <div
+          className={activeTab === TABS.CHAT ? 'contents' : 'hidden'}
+          aria-hidden={activeTab !== TABS.CHAT}
+        >
+          <ChatTab />
+        </div>
       </div>
     </div>
   )

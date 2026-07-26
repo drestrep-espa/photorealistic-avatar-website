@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 import MarkdownContent from './MarkdownContent.jsx'
 
-const API_BASE = '/api'
+const API_BASE = import.meta.env.VITE_REVIEW_API_URL || '/api'
+const USE_LAMBDA_API = Boolean(import.meta.env.VITE_REVIEW_API_URL)
 
 const STATUS = {
   IDLE: 'idle',
@@ -50,21 +51,10 @@ export default function ReviewTab() {
     setError(null)
     setResult(null)
 
-    const formData = new FormData()
-    formData.append('file', file)
-
     try {
-      const response = await fetch(`${API_BASE}/reviews`, {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        const detail = await response.json().catch(() => null)
-        throw new Error(detail?.detail || `Error del servidor (${response.status})`)
-      }
-
-      const data = await response.json()
+      const data = USE_LAMBDA_API
+        ? await createLambdaReview(file)
+        : await createLocalReview(file)
       setResult(data)
       setStatus(STATUS.DONE)
     } catch (err) {
@@ -159,12 +149,18 @@ export default function ReviewTab() {
       {status === STATUS.DONE && result && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-5 text-sm text-emerald-900 shadow-sm">
           <p className="font-semibold">Ya está terminado el informe.</p>
-          <p className="mt-1">
-            Te lo dejo guardado en esta ruta:{' '}
-            <code className="rounded bg-emerald-100 px-1.5 py-0.5 font-mono text-xs">
-              {result.report_path}
-            </code>
-          </p>
+          {result.report_path ? (
+            <p className="mt-1">
+              Te lo dejo guardado en esta ruta:{' '}
+              <code className="rounded bg-emerald-100 px-1.5 py-0.5 font-mono text-xs">
+                {result.report_path}
+              </code>
+            </p>
+          ) : (
+            <p className="mt-1">
+              El PDF está preparado. El enlace de descarga será válido durante dos horas.
+            </p>
+          )}
           {formatCost(result.cost_summary) && (
             <p className="mt-1 text-xs text-emerald-700/80">
               Coste de esta ejecución: ${formatCost(result.cost_summary)}
@@ -180,10 +176,64 @@ export default function ReviewTab() {
               </div>
             </details>
           )}
+          {result.report_url && (
+            <a
+              href={result.report_url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-flex rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600"
+            >
+              Descargar informe PDF
+            </a>
+          )}
         </div>
       )}
     </main>
   )
+}
+
+async function createLambdaReview(file) {
+  const upload = await fetchJson(`${API_BASE}/uploads`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      filename: file.name,
+      content_type: 'application/pdf',
+    }),
+  })
+
+  const uploadResponse = await fetch(upload.upload_url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/pdf' },
+    body: file,
+  })
+  if (!uploadResponse.ok) {
+    throw new Error('No se pudo subir el PDF.')
+  }
+
+  return fetchJson(`${API_BASE}/reviews`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ document_key: upload.document_key }),
+  })
+}
+
+async function createLocalReview(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return fetchJson(`${API_BASE}/reviews`, {
+    method: 'POST',
+    body: formData,
+  })
+}
+
+async function fetchJson(url, options) {
+  const response = await fetch(url, options)
+  const data = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(data?.detail || `Error del servidor (${response.status})`)
+  }
+  return data
 }
 
 function UploadIcon() {

@@ -25,9 +25,18 @@ from src.infrastructure.openai_project_document_search_service import (
 )
 
 
-def check_document(document_path: str):
-    api_key = os.environ["OPENAI_API_KEY"]
-    vector_store_id = os.environ["VECTOR_STORE_id"]
+def check_document(
+    document_path: str,
+    report_output_dir: str = "data/informe",
+    api_key: str | None = None,
+    vector_store_id: str | None = None,
+):
+    api_key = api_key or os.environ["OPENAI_API_KEY"]
+    vector_store_id = (
+        vector_store_id
+        or os.environ.get("VECTOR_STORE_ID")
+        or os.environ["VECTOR_STORE_id"]
+    )
 
     cost_tracker = OpenAiLlmCostTracker()
     llm_service = OpenAiLlmService(api_key=api_key, cost_tracker=cost_tracker)
@@ -88,7 +97,7 @@ def check_document(document_path: str):
         report_path = generate_review_report(
             report_generator=FpdfReportGenerator(),
             content=resultado,
-            output_dir="data/informe",
+            output_dir=report_output_dir,
         )
         print(f"[flujo] Informe generado en '{report_path}'.", flush=True)
     finally:
@@ -103,9 +112,18 @@ def check_document(document_path: str):
     }
 
 
-def answer_question(question: str, history: Optional[List[Dict[str, Any]]] = None):
-    api_key = os.environ["OPENAI_API_KEY"]
-    vector_store_id = os.environ["VECTOR_STORE_id"]
+def answer_question(
+    question: str,
+    history: Optional[List[Dict[str, Any]]] = None,
+    api_key: str | None = None,
+    vector_store_id: str | None = None,
+):
+    api_key = api_key or os.environ["OPENAI_API_KEY"]
+    vector_store_id = (
+        vector_store_id
+        or os.environ.get("VECTOR_STORE_ID")
+        or os.environ["VECTOR_STORE_id"]
+    )
 
     cost_tracker = OpenAiLlmCostTracker()
     llm_service = OpenAiLlmService(api_key=api_key, cost_tracker=cost_tracker, model="gpt-5.4")

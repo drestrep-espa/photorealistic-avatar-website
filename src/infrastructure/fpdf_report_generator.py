@@ -6,8 +6,14 @@ from fpdf.enums import XPos, YPos
 
 from ..domain.report_generator import ReportGenerator
 
-FONT_REGULAR_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-FONT_BOLD_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+FONT_REGULAR_PATH = os.environ.get(
+    "FONT_REGULAR_PATH",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+)
+FONT_BOLD_PATH = os.environ.get(
+    "FONT_BOLD_PATH",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+)
 
 
 class FpdfReportGenerator(ReportGenerator):
